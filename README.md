@@ -8,7 +8,8 @@
 ![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.4-6DB33F?logo=springboot&logoColor=white)
 ![Kafka](https://img.shields.io/badge/Kafka-Event_Driven-231F20?logo=apachekafka)
 ![Kubernetes](https://img.shields.io/badge/Kubernetes-Helm-326CE5?logo=kubernetes&logoColor=white)
-![CI](https://img.shields.io/badge/CI-GitHub_Actions-2088FF?logo=githubactions&logoColor=white)
+[![CI](https://github.com/therealilyas/cloud-commerce-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/therealilyas/cloud-commerce-platform/actions/workflows/ci.yml)
+[![Security](https://github.com/therealilyas/cloud-commerce-platform/actions/workflows/security.yml/badge.svg)](https://github.com/therealilyas/cloud-commerce-platform/actions/workflows/security.yml)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
 From REST request to asynchronous payment, observable deployment, and GitOps-ready Kubernetes manifests.
