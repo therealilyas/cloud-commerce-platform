@@ -162,6 +162,13 @@ The initial response is `PENDING_PAYMENT`. Query the returned order ID after a m
 
 See [Architecture](docs/ARCHITECTURE.md) for boundaries and trade-offs.
 
+## Learn and evaluate the project
+
+- [0-to-complete hands-on guide in Uzbek](docs/ZERO_TO_COMPLETE_GUIDE_UZ.md)
+- [Senior Java Engineer readiness assessment](docs/SENIOR_JAVA_READINESS.md)
+- [Operations runbook](docs/RUNBOOK.md)
+- [Implementation roadmap](ROADMAP.md)
+
 ## Local development
 
 Use Java 21. The repository contains a lightweight Maven bootstrap script, so a global Maven installation is optional.
