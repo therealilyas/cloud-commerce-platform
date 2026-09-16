@@ -1,0 +1,40 @@
+global:
+  imageRegistry: ghcr.io/therealilyas
+  imageTag: latest
+  kafkaBootstrapServers: redpanda.kafka.svc.cluster.local:9092
+
+services:
+  gateway:
+    image: api-gateway
+    port: 8080
+    replicas: 2
+    env:
+      PRODUCT_SERVICE_URL: http://product-service:8081
+      INVENTORY_SERVICE_URL: http://inventory-service:8082
+      ORDER_SERVICE_URL: http://order-service:8083
+  product-service:
+    image: product-service
+    port: 8081
+    replicas: 2
+    database: products
+  inventory-service:
+    image: inventory-service
+    port: 8082
+    replicas: 2
+    database: inventory
+  order-service:
+    image: order-service
+    port: 8083
+    replicas: 2
+    database: orders
+    env:
+      INVENTORY_URL: http://inventory-service:8082
+  payment-service:
+    image: payment-service
+    port: 8084
+    replicas: 2
+    database: payments
+
+resources:
+  requests: { cpu: 100m, memory: 256Mi }
+  limits: { cpu: 500m, memory: 512Mi }

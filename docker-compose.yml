@@ -1,0 +1,134 @@
+name: cloud-commerce
+
+x-service: &service
+  restart: unless-stopped
+  networks: [commerce]
+
+x-db-environment: &db-environment
+  POSTGRES_USER: commerce
+  POSTGRES_PASSWORD: commerce
+
+services:
+  gateway:
+    <<: *service
+    build: { context: ., dockerfile: docker/Dockerfile, args: { SERVICE: api-gateway } }
+    ports: ["8080:8080"]
+    environment:
+      PRODUCT_SERVICE_URL: http://product-service:8081
+      INVENTORY_SERVICE_URL: http://inventory-service:8082
+      ORDER_SERVICE_URL: http://order-service:8083
+    depends_on:
+      product-service: { condition: service_healthy }
+      inventory-service: { condition: service_healthy }
+      order-service: { condition: service_healthy }
+    healthcheck: { test: ["CMD", "wget", "-qO-", "http://localhost:8080/actuator/health"], interval: 10s, timeout: 3s, retries: 10 }
+
+  product-service:
+    <<: *service
+    build: { context: ., dockerfile: docker/Dockerfile, args: { SERVICE: product-service } }
+    environment:
+      DB_URL: jdbc:postgresql://product-db:5432/products
+      DB_USER: commerce
+      DB_PASSWORD: commerce
+    depends_on: { product-db: { condition: service_healthy } }
+    healthcheck: { test: ["CMD", "wget", "-qO-", "http://localhost:8081/actuator/health"], interval: 10s, timeout: 3s, retries: 10 }
+
+  inventory-service:
+    <<: *service
+    build: { context: ., dockerfile: docker/Dockerfile, args: { SERVICE: inventory-service } }
+    environment:
+      DB_URL: jdbc:postgresql://inventory-db:5432/inventory
+      DB_USER: commerce
+      DB_PASSWORD: commerce
+    depends_on: { inventory-db: { condition: service_healthy } }
+    healthcheck: { test: ["CMD", "wget", "-qO-", "http://localhost:8082/actuator/health"], interval: 10s, timeout: 3s, retries: 10 }
+
+  order-service:
+    <<: *service
+    build: { context: ., dockerfile: docker/Dockerfile, args: { SERVICE: order-service } }
+    environment:
+      DB_URL: jdbc:postgresql://order-db:5432/orders
+      DB_USER: commerce
+      DB_PASSWORD: commerce
+      KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+      INVENTORY_URL: http://inventory-service:8082
+    depends_on:
+      order-db: { condition: service_healthy }
+      redpanda: { condition: service_healthy }
+      inventory-service: { condition: service_healthy }
+    healthcheck: { test: ["CMD", "wget", "-qO-", "http://localhost:8083/actuator/health"], interval: 10s, timeout: 3s, retries: 10 }
+
+  payment-service:
+    <<: *service
+    build: { context: ., dockerfile: docker/Dockerfile, args: { SERVICE: payment-service } }
+    environment:
+      DB_URL: jdbc:postgresql://payment-db:5432/payments
+      DB_USER: commerce
+      DB_PASSWORD: commerce
+      KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+      PAYMENT_SUCCESS_RATE: ${PAYMENT_SUCCESS_RATE:-0.90}
+    depends_on:
+      payment-db: { condition: service_healthy }
+      redpanda: { condition: service_healthy }
+    healthcheck: { test: ["CMD", "wget", "-qO-", "http://localhost:8084/actuator/health"], interval: 10s, timeout: 3s, retries: 10 }
+
+  product-db:
+    image: postgres:17-alpine
+    environment: { <<: *db-environment, POSTGRES_DB: products }
+    ports: ["5433:5432"]
+    volumes: [product-data:/var/lib/postgresql/data]
+    networks: [commerce]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U commerce -d products"], interval: 5s, timeout: 3s, retries: 10 }
+  inventory-db:
+    image: postgres:17-alpine
+    environment: { <<: *db-environment, POSTGRES_DB: inventory }
+    ports: ["5434:5432"]
+    volumes: [inventory-data:/var/lib/postgresql/data]
+    networks: [commerce]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U commerce -d inventory"], interval: 5s, timeout: 3s, retries: 10 }
+  order-db:
+    image: postgres:17-alpine
+    environment: { <<: *db-environment, POSTGRES_DB: orders }
+    ports: ["5435:5432"]
+    volumes: [order-data:/var/lib/postgresql/data]
+    networks: [commerce]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U commerce -d orders"], interval: 5s, timeout: 3s, retries: 10 }
+  payment-db:
+    image: postgres:17-alpine
+    environment: { <<: *db-environment, POSTGRES_DB: payments }
+    ports: ["5436:5432"]
+    volumes: [payment-data:/var/lib/postgresql/data]
+    networks: [commerce]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U commerce -d payments"], interval: 5s, timeout: 3s, retries: 10 }
+
+  redpanda:
+    image: redpandadata/redpanda:v24.3.7
+    command: [redpanda, start, --overprovisioned, --smp, "1", --memory, 512M, --reserve-memory, 0M, --node-id, "0", --check=false, --kafka-addr, PLAINTEXT://0.0.0.0:9092,OUTSIDE://0.0.0.0:19092, --advertise-kafka-addr, PLAINTEXT://redpanda:9092,OUTSIDE://localhost:19092]
+    ports: ["19092:19092", "9644:9644"]
+    networks: [commerce]
+    healthcheck: { test: ["CMD-SHELL", "rpk cluster health | grep -E 'Healthy:.+true'"], interval: 10s, timeout: 5s, retries: 10 }
+
+  prometheus:
+    image: prom/prometheus:v3.3.0
+    command: [--config.file=/etc/prometheus/prometheus.yml]
+    volumes: [./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro]
+    ports: ["9090:9090"]
+    networks: [commerce]
+  grafana:
+    image: grafana/grafana:11.6.1
+    environment: { GF_SECURITY_ADMIN_USER: admin, GF_SECURITY_ADMIN_PASSWORD: admin }
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+    ports: ["3000:3000"]
+    networks: [commerce]
+    depends_on: [prometheus]
+
+networks:
+  commerce: {}
+volumes:
+  product-data: {}
+  inventory-data: {}
+  order-data: {}
+  payment-data: {}
+  grafana-data: {}

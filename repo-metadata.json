@@ -1,0 +1,11 @@
+{
+  "name": "cloud-commerce-platform",
+  "description": "Production-style Java microservices platform with Kafka, PostgreSQL, Docker, Kubernetes, GitOps and observability.",
+  "homepage": "https://github.com/therealilyas/cloud-commerce-platform",
+  "visibility": "public",
+  "topics": [
+    "java", "spring-boot", "microservices", "kafka", "postgresql",
+    "docker", "kubernetes", "helm", "devops", "gitops",
+    "github-actions", "prometheus", "grafana", "opentelemetry", "portfolio"
+  ]
+}

@@ -1,0 +1,28 @@
+server.port: 8080
+spring:
+  application.name: api-gateway
+  cloud.gateway:
+    default-filters:
+      - AddResponseHeader=X-Platform, cloud-commerce-platform
+    globalcors:
+      cors-configurations:
+        '[/**]':
+          allowedOrigins: ${ALLOWED_ORIGINS:http://localhost:3000}
+          allowedMethods: [GET, POST, PUT, DELETE, OPTIONS]
+          allowedHeaders: '*'
+    routes:
+      - id: products
+        uri: ${PRODUCT_SERVICE_URL:http://localhost:8081}
+        predicates: [Path=/api/products/**]
+      - id: inventory
+        uri: ${INVENTORY_SERVICE_URL:http://localhost:8082}
+        predicates: [Path=/api/inventory/**]
+      - id: orders
+        uri: ${ORDER_SERVICE_URL:http://localhost:8083}
+        predicates: [Path=/api/orders/**]
+management:
+  endpoints.web.exposure.include: health,info,prometheus,gateway
+  endpoint:
+    health.probes.enabled: true
+    gateway.access: read_only
+  metrics.tags.application: ${spring.application.name}

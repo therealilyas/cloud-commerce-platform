@@ -1,0 +1,46 @@
+{{- range $name, $service := .Values.services }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  labels: { app.kubernetes.io/name: {{ $name }}, app.kubernetes.io/part-of: cloud-commerce }
+spec:
+  replicas: {{ $service.replicas }}
+  selector:
+    matchLabels: { app.kubernetes.io/name: {{ $name }} }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: {{ $name }}, app.kubernetes.io/part-of: cloud-commerce }
+    spec:
+      automountServiceAccountToken: false
+      securityContext: { runAsNonRoot: true, seccompProfile: { type: RuntimeDefault } }
+      containers:
+        - name: {{ $name }}
+          image: "{{ $.Values.global.imageRegistry }}/{{ $service.image }}:{{ $.Values.global.imageTag }}"
+          imagePullPolicy: IfNotPresent
+          ports: [{ name: http, containerPort: {{ $service.port }} }]
+          env:
+            - { name: KAFKA_BOOTSTRAP_SERVERS, value: "{{ $.Values.global.kafkaBootstrapServers }}" }
+            {{- if $service.database }}
+            - { name: DB_URL, valueFrom: { secretKeyRef: { name: commerce-databases, key: {{ $service.database }}-url } } }
+            - { name: DB_USER, valueFrom: { secretKeyRef: { name: commerce-databases, key: username } } }
+            - { name: DB_PASSWORD, valueFrom: { secretKeyRef: { name: commerce-databases, key: password } } }
+            {{- end }}
+            {{- range $key, $value := $service.env }}
+            - { name: {{ $key }}, value: "{{ $value }}" }
+            {{- end }}
+          resources: {{ toYaml $.Values.resources | nindent 12 }}
+          readinessProbe: { httpGet: { path: /actuator/health/readiness, port: http }, initialDelaySeconds: 20, periodSeconds: 10 }
+          livenessProbe: { httpGet: { path: /actuator/health/liveness, port: http }, initialDelaySeconds: 30, periodSeconds: 15 }
+          securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: [ALL] } }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels: { app.kubernetes.io/name: {{ $name }}, app.kubernetes.io/part-of: cloud-commerce }
+spec:
+  selector: { app.kubernetes.io/name: {{ $name }} }
+  ports: [{ name: http, port: {{ $service.port }}, targetPort: http }]
+{{- end }}
